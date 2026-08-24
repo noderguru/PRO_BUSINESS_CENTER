@@ -1,0 +1,42 @@
+# --- Вхідні матеріали завдання ---
+/docs/
+
+# --- Секрети ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.python-version
+
+# --- Тести / інструменти ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# --- Локальні дані ---
+*.sqlite3
+*.db
+*.log
+logs/
+.pgdata/
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
