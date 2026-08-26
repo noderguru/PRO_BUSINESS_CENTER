@@ -19,6 +19,10 @@ def _env(monkeypatch_session=None):
     os.environ["DATABASE_URL"] = TEST_DB_URL
     os.environ["OPENAI_API_KEY"] = "sk-test-not-used"
     os.environ["OPENAI_BASE_URL"] = ""
+    # тести не залежать від локального .env
+    os.environ["OPENAI_DEFAULT_MODEL"] = "gpt-5.6-luna"
+    os.environ["CONTEXT_MAX_MESSAGES"] = "20"
+    os.environ["CONTEXT_MAX_INPUT_TOKENS"] = "8000"
 
 
 @pytest.fixture(scope="session")

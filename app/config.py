@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     openai_api_key: str
     # порожньо -> api.openai.com; інакше передається в SDK як base_url
     openai_base_url: str = ""
-    openai_default_model: str = "gpt-4o-mini"
+    openai_default_model: str = "gpt-5.6-luna"
     openai_timeout_seconds: int = 60
     openai_max_retries: int = 2
 

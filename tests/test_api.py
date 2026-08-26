@@ -14,7 +14,7 @@ def _create(client, **kwargs):
 
 def test_create_session_defaults_and_rejects_unknown_model(client):
     created = _create(client, title="перша", system_prompt="ти асистент")
-    assert created["model"] == "gpt-4o-mini"
+    assert created["model"] == "gpt-5.6-luna"
     assert created["status"] == "active"
     assert Decimal(created["total_cost_usd"]) == 0
 
@@ -31,7 +31,8 @@ def test_exchange_saves_history_usage_and_totals(client, db, fake_llm):
     body = first.json()
     assert body["message"]["role"] == "assistant"
     assert body["usage"]["prompt_tokens"] == 1000
-    assert Decimal(body["usage"]["total_cost_usd"]) == Decimal("0.00043500")
+    # gpt-5.6-luna: 800 свіжих * 0.20/1M + 200 кешованих * 0.02/1M + 500 * 1.20/1M
+    assert Decimal(body["usage"]["total_cost_usd"]) == Decimal("0.00076400")
     assert body["session_totals"]["message_count"] == 2
 
     client.post(f"/sessions/{session_id}/messages", json={"content": "друге питання"})
@@ -46,7 +47,7 @@ def test_exchange_saves_history_usage_and_totals(client, db, fake_llm):
     summed = db.execute(
         select(func.sum(UsageRecord.total_cost_usd)).where(UsageRecord.session_id == session_id)
     ).scalar()
-    assert Decimal(detail["total_cost_usd"]) == summed == Decimal("0.00087000")
+    assert Decimal(detail["total_cost_usd"]) == summed == Decimal("0.00152800")
 
 
 def test_second_message_carries_previous_history(client, fake_llm):

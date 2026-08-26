@@ -1,10 +1,14 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, field_validator
 
 MAX_CONTENT_LEN = 32_000
+
+# гроші назовні — рядок з фіксованими 8 знаками, без 0E-8 і без float
+Money = Annotated[Decimal, PlainSerializer(lambda v: f"{v:.8f}", return_type=str)]
 
 
 class SessionCreate(BaseModel):
@@ -24,7 +28,7 @@ class SessionOut(BaseModel):
     message_count: int
     total_prompt_tokens: int
     total_completion_tokens: int
-    total_cost_usd: Decimal
+    total_cost_usd: Money
     created_at: datetime
     updated_at: datetime
 
@@ -59,9 +63,9 @@ class UsageOut(BaseModel):
     completion_tokens: int
     cached_prompt_tokens: int
     total_tokens: int
-    prompt_cost_usd: Decimal
-    completion_cost_usd: Decimal
-    total_cost_usd: Decimal
+    prompt_cost_usd: Money
+    completion_cost_usd: Money
+    total_cost_usd: Money
     currency: str
 
 
@@ -69,7 +73,7 @@ class SessionTotals(BaseModel):
     message_count: int
     total_prompt_tokens: int
     total_completion_tokens: int
-    total_cost_usd: Decimal
+    total_cost_usd: Money
 
 
 class SendMessageResponse(BaseModel):

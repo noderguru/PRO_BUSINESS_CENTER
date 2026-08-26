@@ -9,6 +9,7 @@ from typing import Sequence, Union
 
 import json
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -64,6 +65,7 @@ def downgrade() -> None:
     seed = json.loads((Path(__file__).resolve().parents[2] / "pricing_seed.json").read_text())
     op.execute(
         sa.text("DELETE FROM model_pricing WHERE effective_from = :ts").bindparams(
-            ts=seed["effective_from"]
+            sa.bindparam("ts", datetime.fromisoformat(seed["effective_from"]),
+                         type_=sa.DateTime(timezone=True))
         )
     )

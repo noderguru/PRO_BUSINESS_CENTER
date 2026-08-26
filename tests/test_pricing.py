@@ -27,9 +27,9 @@ def test_cached_tokens_are_not_billed_twice(db):
 
 
 def test_snapshot_keeps_applied_prices(db):
-    cost = PricingService(db).cost_for(Usage(10, 10), "gpt-4o")
-    assert cost.pricing_snapshot["model"] == "gpt-4o"
-    assert cost.pricing_snapshot["input_usd_per_1m"] == "2.50000000"
+    cost = PricingService(db).cost_for(Usage(10, 10), "gpt-5.6-terra")
+    assert cost.pricing_snapshot["model"] == "gpt-5.6-terra"
+    assert cost.pricing_snapshot["input_usd_per_1m"] == "2.00000000"
 
 
 def test_unknown_model_never_costs_zero(db):
