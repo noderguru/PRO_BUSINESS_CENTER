@@ -1,0 +1,11 @@
+{
+  "effective_from": "2026-08-26T00:00:00+00:00",
+  "currency": "USD",
+  "source": "https://openai.com/api/pricing/ , зафіксовано на дату реалізації",
+  "models": [
+    {"model": "gpt-4o-mini",        "input_usd_per_1m": "0.15", "cached_input_usd_per_1m": "0.075", "output_usd_per_1m": "0.60"},
+    {"model": "gpt-4o",             "input_usd_per_1m": "2.50", "cached_input_usd_per_1m": "1.25",  "output_usd_per_1m": "10.00"},
+    {"model": "openai/gpt-4o-mini", "input_usd_per_1m": "0.15", "cached_input_usd_per_1m": "0.075", "output_usd_per_1m": "0.60"},
+    {"model": "openai/gpt-4o",      "input_usd_per_1m": "2.50", "cached_input_usd_per_1m": "1.25",  "output_usd_per_1m": "10.00"}
+  ]
+}
