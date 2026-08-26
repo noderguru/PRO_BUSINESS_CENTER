@@ -9,7 +9,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-TEST_DB_URL = "postgresql+psycopg://pbc:pbc@localhost:5432/pbc_chat_test"
+import os as _os
+
+# перевизначається змінною TEST_DATABASE_URL, якщо локальні креденшели інші
+TEST_DB_URL = _os.environ.get(
+    "TEST_DATABASE_URL", "postgresql+psycopg://pbc:pbc@localhost:5432/pbc_chat_test"
+)
 
 
 @pytest.fixture(scope="session", autouse=True)
