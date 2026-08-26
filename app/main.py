@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import get_db
+from app.api.sessions import router as sessions_router
 from app.errors import StorageUnavailableError, register_handlers
 
 logging.basicConfig(level=get_settings().log_level)
 
 app = FastAPI(title="Chat Sessions Service", version="0.1.0")
 register_handlers(app)
+app.include_router(sessions_router)
 
 
 @app.middleware("http")
