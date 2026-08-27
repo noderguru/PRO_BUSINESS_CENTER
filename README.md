@@ -42,8 +42,9 @@ uvicorn app.main:app --reload
 | метод | шлях | призначення |
 |---|---|---|
 | `POST` | `/sessions` | створити сесію → `201` |
-| `POST` | `/sessions/{id}/messages` | надіслати повідомлення, отримати відповідь, usage і вартість |
-| `GET` | `/sessions/{id}` | сесія, **повна історія** і накопичена вартість |
+| `POST` | `/sessions/{id}/messages` | надіслати повідомлення (`model` необов'язковий), отримати відповідь, usage і вартість |
+| `POST` | `/sessions/{id}/reset` | почати чистий контекст, зберігши той самий session ID |
+| `GET` | `/sessions/{id}` | сесія, **активна історія** і накопичена вартість контексту |
 | `GET` | `/health` | liveness + пінг БД |
 
 ### Приклади
@@ -73,7 +74,7 @@ curl -s -X POST localhost:8000/sessions/$SESSION/messages \
 ```json
 {"message":{"seq":2,"role":"assistant","content":"Запам'ятав, Олеже."},
  "usage":{"prompt_tokens":24,"completion_tokens":8,"cached_prompt_tokens":0,
-          "total_tokens":32,"prompt_cost_usd":"0.00000480",
+          "total_tokens":32,"model":"gpt-5.6-luna","prompt_cost_usd":"0.00000480",
           "completion_cost_usd":"0.00000960","total_cost_usd":"0.00001440","currency":"USD"},
  "session_totals":{"message_count":2,"total_cost_usd":"0.00001440"},
  "context_truncated":false}
@@ -89,8 +90,50 @@ curl -s -X POST localhost:8000/sessions/$SESSION/messages \
 curl -s localhost:8000/sessions/$SESSION
 ```
 
-Відповідь містить усі повідомлення в порядку `seq` і `total_cost_usd` — суму вартості
-всіх обмінів сесії.
+Відповідь містить повідомлення активного контексту в порядку `seq` і `total_cost_usd` —
+суму вартості обмінів цього контексту.
+
+**4. Обрати модель для окремого повідомлення**
+
+```bash
+curl -s -X POST localhost:8000/sessions/$SESSION/messages \
+  -H 'Content-Type: application/json' \
+  -d '{"content":"Розберись зі складним питанням","model":"gpt-5.6-terra"}'
+```
+
+Без поля `model` береться модель сесії. Вартість завжди рахується за тарифом тієї моделі,
+яка реально відпрацювала — вона ж повертається в `usage.model` і пишеться в `usage_records`.
+Невідома модель відхиляється **до** виклику провайдера:
+
+```bash
+curl -s -X POST localhost:8000/sessions/$SESSION/messages \
+  -H 'Content-Type: application/json' -d '{"content":"привіт","model":"gpt-nope"}'
+```
+
+```json
+{"error":{"code":"UNKNOWN_MODEL",
+          "message":"Model is not present in the pricing catalog",
+          "details":{"model":"gpt-nope"}}}
+```
+
+**5. Скинути контекст, не змінюючи session ID**
+
+```bash
+curl -s -X POST localhost:8000/sessions/$SESSION/reset
+curl -s localhost:8000/sessions/$SESSION
+```
+
+Після reset: `id` той самий, `generation` збільшився на 1, `messages` порожній,
+`total_cost_usd` активного контексту — `0.00000000`. Наступне повідомлення йде в модель
+без попередньої історії; `system_prompt` сесії reset не чіпає.
+
+Попередні повідомлення **не видаляються**, вони лишаються в БД як архів попереднього
+покоління — на них посилаються `usage_records`, джерело правди по витратах. Тому вартість
+за весь час життя сесії лишається обчислюваною:
+
+```sql
+SELECT SUM(total_cost_usd) FROM usage_records WHERE session_id = '...';
+```
 
 ---
 
@@ -208,7 +251,7 @@ tests/                pytest, клієнт провайдера замокани
 ## Тести
 
 ```bash
-pytest -q          # 20 тестів, жоден не ходить у мережу
+pytest -q          # 27 тестів, жоден не ходить у мережу
 ruff check app tests
 ```
 
@@ -218,6 +261,11 @@ ruff check app tests
 кешу, обрізання контексту зі збереженням системного промпту, happy-path обміну зі зведенням
 агрегатів, передача історії в другий запит, відкат при збої провайдера, маппінг помилок,
 нормалізація usage для reasoning-моделі.
+
+Change request Кроку 4 (`tests/test_change_request.py`): reset зберігає session ID і чистить
+активний контекст, архів повідомлень і `usage_records` після reset лишається в БД, у провайдера
+не їде старий контекст, вартість після reset рахується з нуля, модель із запиту перекриває
+default сесії й визначає тариф, невідома модель відхиляється до мережевого виклику.
 
 ---
 

@@ -41,9 +41,30 @@ def create_session(
 
 @router.get("/{session_id}", response_model=SessionDetail)
 def get_session(session_id: uuid.UUID, db: DbSession = Depends(get_db)) -> SessionDetail:
-    """Сесія, повна історія та накопичена вартість — одним відповіддю."""
+    """Сесія, активна історія та накопичена вартість — однією відповіддю.
+
+    Після reset у відповідь потрапляє лише поточне покоління контексту.
+    """
     session = repo.get_session(db, session_id)
-    return SessionDetail.model_validate(session)
+    return SessionDetail(
+        **SessionOut.model_validate(session).model_dump(),
+        messages=repo.active_messages(db, session_id, session.generation),
+    )
+
+
+@router.post("/{session_id}/reset", response_model=SessionOut)
+def reset_session(session_id: uuid.UUID, db: DbSession = Depends(get_db)) -> SessionOut:
+    """Чистий контекст під тим самим session ID.
+
+    Повідомлення попередніх поколінь лишаються в БД як архів: на них посилаються
+    usage_records — джерело правди по витратах. Активна історія і total_cost_usd
+    активного контексту після reset порожні.
+    """
+    session = repo.lock_session(db, session_id)
+    repo.reset_session(session)
+    db.commit()
+    db.refresh(session)
+    return SessionOut.model_validate(session)
 
 
 @router.post("/{session_id}/messages", response_model=SendMessageResponse)
@@ -54,12 +75,13 @@ def send_message(
     settings: Settings = Depends(get_settings),
     llm: LLMClient = Depends(get_llm),
 ) -> SendMessageResponse:
-    result = ChatService(db, settings, llm).send(session_id, payload.content)
+    result = ChatService(db, settings, llm).send(session_id, payload.content, payload.model)
     session = result.assistant_message.session
 
     return SendMessageResponse(
         message=result.assistant_message,
         usage=UsageOut(
+            model=result.model,
             prompt_tokens=result.usage.prompt_tokens,
             completion_tokens=result.usage.completion_tokens,
             cached_prompt_tokens=result.usage.cached_prompt_tokens,

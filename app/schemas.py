@@ -25,6 +25,7 @@ class SessionOut(BaseModel):
     model: str
     system_prompt: str | None
     status: str
+    generation: int
     message_count: int
     total_prompt_tokens: int
     total_completion_tokens: int
@@ -48,7 +49,11 @@ class SessionDetail(SessionOut):
 
 
 class MessageCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     content: str = Field(min_length=1, max_length=MAX_CONTENT_LEN)
+    # None -> модель сесії. Тарифікація завжди йде за фактично використаною моделлю.
+    model: str | None = Field(default=None, max_length=128)
 
     @field_validator("content")
     @classmethod
@@ -59,6 +64,9 @@ class MessageCreate(BaseModel):
 
 
 class UsageOut(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
+    model: str
     prompt_tokens: int
     completion_tokens: int
     cached_prompt_tokens: int

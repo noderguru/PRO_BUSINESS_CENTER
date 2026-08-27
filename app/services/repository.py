@@ -1,6 +1,7 @@
 """Запити до БД. ORM-логіки в роутах немає."""
 
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DbSession
@@ -37,24 +38,41 @@ def lock_session(db: DbSession, session_id: uuid.UUID) -> Session:
     return session
 
 
-def history_pairs(db: DbSession, session_id: uuid.UUID) -> list[tuple[str, str]]:
+def history_pairs(db: DbSession, session_id: uuid.UUID, generation: int) -> list[tuple[str, str]]:
+    """Історія лише поточного покоління: після reset модель не бачить старий контекст."""
     rows = db.execute(
         select(Message.role, Message.content)
-        .where(Message.session_id == session_id)
+        .where(Message.session_id == session_id, Message.generation == generation)
         .order_by(Message.seq)
     ).all()
     return [(r.role, r.content) for r in rows]
 
 
+def active_messages(db: DbSession, session_id: uuid.UUID, generation: int) -> list[Message]:
+    return list(
+        db.execute(
+            select(Message)
+            .where(Message.session_id == session_id, Message.generation == generation)
+            .order_by(Message.seq)
+        ).scalars()
+    )
+
+
 def next_seq(db: DbSession, session_id: uuid.UUID) -> int:
+    # ponytail: seq наскрізний по всій сесії, а не по поколінню — інакше після reset він
+    # зіткнувся б з UNIQUE(session_id, seq). Ціна: після reset історія починається не з 1.
     current = db.execute(
         select(func.max(Message.seq)).where(Message.session_id == session_id)
     ).scalar()
     return (current or 0) + 1
 
 
-def add_message(db: DbSession, *, session_id: uuid.UUID, seq: int, role: str, content: str) -> Message:
-    message = Message(session_id=session_id, seq=seq, role=role, content=content)
+def add_message(
+    db: DbSession, *, session_id: uuid.UUID, seq: int, generation: int, role: str, content: str
+) -> Message:
+    message = Message(
+        session_id=session_id, seq=seq, generation=generation, role=role, content=content
+    )
     db.add(message)
     db.flush()
     return message
@@ -80,6 +98,15 @@ def add_usage_record(db: DbSession, *, session_id, message_id, model, usage, cos
     db.add(record)
     db.flush()
     return record
+
+
+def reset_session(session: Session) -> None:
+    """Нове покоління контексту. Повідомлення не видаляються — їх тримає usage_records."""
+    session.generation += 1
+    session.message_count = 0
+    session.total_prompt_tokens = 0
+    session.total_completion_tokens = 0
+    session.total_cost_usd = Decimal("0")
 
 
 def bump_session_totals(session: Session, *, usage, cost, added_messages: int) -> None:

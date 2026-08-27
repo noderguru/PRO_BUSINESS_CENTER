@@ -86,11 +86,13 @@ class FakeLLM:
         self.reply = reply
         self.error = error
         self.calls: list[list[dict]] = []
+        self.models: list[str] = []
 
     def chat(self, model: str, messages: list[dict]):
         from app.services.llm import LLMResponse
 
         self.calls.append(messages)
+        self.models.append(model)
         if self.error:
             raise self.error
         return LLMResponse(
